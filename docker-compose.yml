@@ -1,17 +1,33 @@
-version: '2'
 services:
-  zookeeper:
-    image: confluentinc/cp-zookeeper:latest
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-
   kafka:
     image: confluentinc/cp-kafka:latest
+    container_name: kafka
+    hostname: kafka
+
     ports:
-      - "9092:9092"
+      - "9092:9092"          # client traffic (host / broker)
+      - "9093:9093"          # controller traffic (internal)
+
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      # --------  KRaft (ZooKeeper-less)  --------------------
+      CLUSTER_ID: kafka-cluster-01
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_NODE_ID: 1
+
+      # two listeners, two distinct names
+      KAFKA_LISTENERS: "BROKER://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "BROKER:PLAINTEXT,CONTROLLER:PLAINTEXT"
+
+      # which listener acts as controller
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+
+      KAFKA_INTER_BROKER_LISTENER_NAME: "BROKER"
+
+      # addresses that other machines should use
+      KAFKA_ADVERTISED_LISTENERS: "BROKER://localhost:9092,CONTROLLER://kafka:9093"
+
+      # --------  single-broker niceties  --------------------
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_DIRS: "/tmp/kraft-logs"
